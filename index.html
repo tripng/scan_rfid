@@ -136,6 +136,9 @@
     </div>
   </header>
 
+  <!-- Hidden input keeps page focus for USB HID RFID keyboard typing -->
+  <input id="rfid-input" type="hidden" autocomplete="off" />
+
   <main class="pt-20">
     <!-- Ambient Accents -->
     <div class="relative w-full overflow-hidden px-gutter py-space-md">
@@ -299,7 +302,7 @@
               >
                 TEMPELKAN KARTU PELAJAR
               </h2>
-              <p class="font-body-md text-base text-slate-700 mt-1 font-medium">
+              <p class="font-body-md text-base text-slate-700 mt-1 font-medium" id="status-sub">
                 Tempelkan Kartu RFID Anda di Alat Pemindai
               </p>
               <div
@@ -365,6 +368,7 @@
                   </div>
                 </div>
                 <div
+                  id="student-badge"
                   class="mt-2 px-3 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 font-label-code text-xs font-bold"
                 >
                   Siswa Aktif
@@ -378,6 +382,7 @@
                   >Profil Presensi Siswa</span
                 >
                 <h3
+                  id="student-name"
                   class="font-headline-lg text-2xl text-slate-900 font-bold mt-0.5 leading-snug"
                 >
                   Muhammad Fikri Pratama
@@ -388,7 +393,7 @@
                       class="font-label-badge text-xs text-slate-600 font-semibold block"
                       >Kelas &#38; Perwalian</span
                     >
-                    <span class="font-body-md text-sm text-slate-900 font-bold"
+                    <span class="font-body-md text-sm text-slate-900 font-bold" id="student-kelas"
                       >XII IPA 2 </span
                     >
                   </div>
@@ -397,7 +402,7 @@
                       class="font-label-badge text-xs text-slate-600 font-semibold block"
                       >NISN</span
                     >
-                    <span class="font-label-code text-sm text-slate-900 font-bold"
+                    <span class="font-label-code text-sm text-slate-900 font-bold" id="student-nisn"
                       >0068492011</span
                     >
                   </div>

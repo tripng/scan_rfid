@@ -1,0 +1,9 @@
+node_modules
+.env
+*.log
+npm-debug.log*
+database/*.db-shm
+database/*.db-wal
+photos/_processed/
+__pycache__
+*.pyc
