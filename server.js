@@ -60,6 +60,10 @@ app.get('/api/scan/:uid', (req, res) => {
       WHERE uid = ?
     `).get(req.params.uid);
     if (!row) return res.status(404).json({ error: 'UID tidak ditemukan atau tidak aktif' });
+    // Jika foto_path NULL, kirimkan NISN/NIP agar klien bisa menyusun path foto otomatis.
+    if (!row.foto_path) {
+      row.foto_path = row.tipe === 'guru' ? row.nip : row.nisn;
+    }
     res.json(row);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -97,21 +101,49 @@ app.post('/api/scan', (req, res) => {
       lookup.card_status !== 'aktif' ? 'kartu tidak aktif' :
       lookup.user_status !== 'aktif'  ? 'pengguna tidak aktif'  : null;
 
+    // Default lokasi ke id=1 (Gerbang Utama) bila tidak dikirim — kolom NOT NULL
+    const locId = lokasi_id || 1;
+
     if (inactiveReason) {
-      db.prepare(`
+      const info = db.prepare(`
         INSERT INTO log_akses (rfid_id, lokasi_id, jenis, waktu_scan, status, keterangan, status_sync)
         VALUES (?, ?, ?, datetime('now'), 'gagal', ?, 0)
-      `).run(card.id, lokasi_id || null, jenis, inactiveReason);
-      return { status: 'gagal', reason: inactiveReason, rfid_id: card.id };
+      `).run(card.id, locId, jenis, inactiveReason);
+      return { status: 'gagal', reason: inactiveReason, rfid_id: card.id, log_id: info.lastInsertRowid };
     }
 
     // 3. Active & valid -> log success.
-    db.prepare(`
+    const info = db.prepare(`
       INSERT INTO log_akses (rfid_id, lokasi_id, jenis, waktu_scan, status, keterangan, status_sync)
       VALUES (?, ?, ?, datetime('now'), 'sukses', NULL, 0)
-    `).run(lookup.rfid_id, lokasi_id || null, jenis);
+    `).run(lookup.rfid_id, locId, jenis);
 
-    return { status: 'sukses', rfid_id: lookup.rfid_id, pengguna_id: lookup.pengguna_id };
+    // Ambil detail profil lengkap via VIEW untuk frontend render
+    const profile = db.prepare(`
+      SELECT
+        r.uid, p.tipe, p.nama, p.foto_path, p.status_aktif,
+        s.id AS siswa_id, s.nisn, s.kelas_id,
+        g.id AS guru_id, g.nip, g.jabatan,
+        k.nama_kelas, k.tingkat
+      FROM rfid_card r
+      JOIN pengguna p ON p.id = r.pengguna_id
+      LEFT JOIN siswa s ON s.id = p.id
+      LEFT JOIN guru g  ON g.id = p.id
+      LEFT JOIN kelas k ON k.id = s.kelas_id
+      WHERE r.uid = ?
+    `).get(uid);
+
+    if (!profile.foto_path) {
+      profile.foto_path = profile.tipe === 'guru' ? profile.nip : profile.nisn;
+    }
+
+    return {
+      status: 'sukses',
+      rfid_id: lookup.rfid_id,
+      pengguna_id: lookup.pengguna_id,
+      log_id: info.lastInsertRowid,
+      ...profile,
+    };
   });
 
   try {

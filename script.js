@@ -12,6 +12,9 @@
 
   const HIDDEN_INPUT = "#rfid-input";
   const API_BASE = "/api";
+  // Lokasi/tempat scan — bisa override via query param ?lokasi_id=<id>
+  const LOKASI_ID = new URLSearchParams(location.search).get("lokasi_id") || null;
+  const JENIS_DEFAULT = "masuk";
 
   // ---- DOM target (id yang ditambahkan di index.html) ----
   const els = {
@@ -21,7 +24,7 @@
     kelas:       document.getElementById("student-kelas"),
     nisn:        document.getElementById("student-nisn"),
     badge:       document.getElementById("student-badge"),
-    photo:       document.querySelector('img[alt="Photo Siswa"]'),
+    photo:       document.getElementById("student-photo"),
   };
 
   // ---- state penumpukan karakter RFID ----
@@ -68,9 +71,21 @@
     if (els.badge) els.badge.textContent = `${typeLabel} ${aktifLabel}`;
 
     // foto: jika DB kembalikan path, pakai relatif dari root serve; fallback placeholder
-    if (els.photo && data.foto_path) {
-      els.photo.src = `./photos/${data.foto_path}`;
-      els.photo.alt = `${data.nama}`;
+    if (els.photo) {
+      if (data.foto_path) {
+        // Pastikan path foto punya ekstensi .jpg/.png (NISN/NIP dari DB tidak bawa ekstensi).
+        const fotoPath = /\.(jpg|jpeg|png|webp)$/i.test(data.foto_path)
+          ? data.foto_path
+          : `${data.foto_path}.jpg`;
+        // Cache-bust dengan timestamp supaya foto berubah ketika NISN/NIP berubah
+        els.photo.src = `./photos/${encodeURIComponent(fotoPath)}?t=${Date.now()}`;
+        els.photo.alt = `${data.nama}`;
+      } else {
+        // fallback SVG placeholder (data URI, no eksternal file perlu)
+        els.photo.src =
+          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI2Y1ZmZmZiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNsaW5lPSJtaWQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2FucXMtc2VyaWYiIGZvbnRzaXplPSIxNCIgZmlsbD0iIzkyYzUzNCI+Tm9JbWFnZTwvdGV4dD48L3N2Zz4=";
+        els.photo.alt = `${data.nama}`;
+      }
     }
 
     // auto-reset setelah ~2 detik agi siap amb scan berikutnya
@@ -79,21 +94,25 @@
   }
 
   /**
-   * Fetch lookup UID ke backend.
+   * POST lookup+log UID ke backend.
+   * Menggunakan POST /api/scan supaya otomatis INSERT ke log_akses
+   * (status sukses/gagal) sekaligus mengembalikan data profil.
    */
   async function handleScan(uid) {
     try {
-      const res = await fetch(`${API_BASE}/scan/${encodeURIComponent(uid)}`, {
+      const res = await fetch(`${API_BASE}/scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         cache: "no-store",
+        body: JSON.stringify({ uid, lokasi_id: LOKASI_ID, jenis: JENIS_DEFAULT }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+      const data = await res.json();
+      if (!res.ok || data.status === 'gagal') {
         if (els.statusCard) els.statusCard.textContent = "KARTU TIDAK DITEMUKAN";
-        if (els.statusSub)  els.statusSub.textContent = err.error || "Scan gagal";
+        if (els.statusSub)  els.statusSub.textContent = data.error || data.reason || "Scan gagal";
         setTimeout(resetToScanPrompt, 2000);
         return;
       }
-      const data = await res.json();
       renderProfile(data);
     } catch (e) {
       if (els.statusCard) els.statusCard.textContent = "ERROR JARINGAN";
