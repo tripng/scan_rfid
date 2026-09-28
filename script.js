@@ -27,6 +27,9 @@
     photo:       document.getElementById("student-photo"),
     // Live feed container — di-populate oleh fetch /api/aktivitas-terakhir
     logStream:   document.getElementById("log-stream"),
+    // Kapasitas workstation live — di-update oleh GET /api/kapasitas-hari-ini
+    kapasitasUsed: document.getElementById("kapasitas-used"),
+    kapasitasPct:  document.getElementById("kapasitas-pct"),
   };
 
   // ---- state penumpukan karakter RFID ----
@@ -190,7 +193,7 @@
    */
   function buildLogItem(row) {
     const isSiswa = row.tipe === "siswa";
-    const isLatest = row.status_sync === 0; // item belum disinkron — highlight rose di kiri
+    const isLatest = row.status_sync === 0; // item belum disinkron — highlight di kiri
 
     const badgeTxt = row.jenis === "masuk" ? "MASUK" : "KELUAR";
     // Warna tema: MASUK = hijau (emerald), KELUAR = merah (rose)
@@ -284,6 +287,26 @@
     }
   }
 
+  /**
+   * Fetch kapasitas workstation: komputer yang sedang dipakai =
+   * MASUK hari ini - KELUAR hari ini (hitungan DB, WITA).
+   * Update angka di #kapasitas-used dan #kapasitas-pct secara live.
+   */
+  async function fetchKapasitas() {
+    if (!els.kapasitasUsed && !els.kapasitasPct) return;
+    try {
+      const res = await fetch(`${API_BASE}/kapasitas-hari-ini`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const k = await res.json();
+      const used = Number(k.used) || 0;
+      const pct = Number(k.pct) || 0;
+      if (els.kapasitasUsed) els.kapasitasUsed.textContent = used;
+      if (els.kapasitasPct)  els.kapasitasPct.textContent = `${pct}%`;
+    } catch (e) {
+      console.error("[RFID] kapasitas-hari-ini fetch error:", e);
+    }
+  }
+
   // ---- init ----
   // Dynamic Running Kiosk Clock
   function updateClock() {
@@ -314,4 +337,8 @@
   // Live feed: log presensi terakhir — fetch sekali + polling tiap 10 detik
   fetchRecentLogs();
   setInterval(fetchRecentLogs, 10000);
+
+  // Kapasitas workstation — fetch sekali + polling tiap 10 detik (sinkron dengan feed)
+  fetchKapasitas();
+  setInterval(fetchKapasitas, 10000);
 })();

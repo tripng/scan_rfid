@@ -276,6 +276,45 @@ app.get('/api/aktivitas-terakhir', (req, res) => {
 });
 
 /**
+ * GET /api/kapasitas-hari-ini
+ * Hitung komputer yang sedang dipakai: MASUK hari ini - KELUAR hari ini.
+ * Hanya hitung log dengan status 'sukses' dan waktu_scan >= start_of_today (WITA/UTC+7).
+ * Memastikan tidak tergantung zona waktu DB — boundary dihitung di Node.js.
+ * Response: { masuk, keluar, used, total, pct }
+ */
+app.get('/api/kapasitas-hari-ini', (req, res) => {
+  try {
+    // Epoch detik awal hari ini 00:00 WITA (UTC+7), portabel terhadap zona DB.
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const wita = utc + 7 * 3600000;          // ms WITA
+    const startOfToday = Math.floor((wita - (wita % 86400000)) / 1000);
+
+    const row = db.prepare(`
+      SELECT
+        SUM(CASE WHEN jenis = 'masuk'  THEN 1 ELSE 0 END) AS masuk,
+        SUM(CASE WHEN jenis = 'keluar' THEN 1 ELSE 0 END) AS keluar
+      FROM log_akses
+      WHERE status = 'sukses' AND waktu_scan >= ?
+    `).get(startOfToday);
+
+    const masuk = Number(row?.masuk || 0);
+    const keluar = Number(row?.keluar || 0);
+    const used = Math.max(0, masuk - keluar);   // komputer sedang dipakai
+    const total = 60;
+    res.json({
+      masuk,
+      keluar,
+      used,
+      total,
+      pct: total > 0 ? Math.round((used / total) * 100) : 0,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * POST /api/sync
  * Mark logs as synced (status_sync = 1). Body: { ids: [1,2,3] }
  */
