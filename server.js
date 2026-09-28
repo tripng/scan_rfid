@@ -112,11 +112,55 @@ app.post('/api/scan', (req, res) => {
       return { status: 'gagal', reason: inactiveReason, rfid_id: card.id, log_id: info.lastInsertRowid };
     }
 
-    // 3. Active & valid -> log success.
+    // 3. Active & valid -> cek anti-double-scan + auto-flip jenis.
+    const ONE_MINUTE_MS = 60 * 1000;
+    const last = db.prepare(`
+      SELECT jenis, waktu_scan
+      FROM log_akses
+      WHERE rfid_id = ?
+      ORDER BY id DESC LIMIT 1
+    `).get(lookup.rfid_id);
+
+    let effectiveJenis = jenis;            // jenis yang akan dicatat
+    let skipReason = null;                // null = boleh insert
+
+    if (last) {
+      // SQLite datetime('now') menghasilkan UTC (YYYY-MM-DD HH:MM:SS).
+      // Append 'Z' agar Date.parse memperlakukannya sebagai UTC, konsisten
+      // dengan Date.now() yang juga epoch UTC. Tanpa ini zona lokal menyimpang
+      // hingga berjam dan cooldown tidak pernah trigger.
+      const lastMs = Date.parse(last.waktu_scan + 'Z');
+      const nowMs  = Date.now();
+      const gap    = nowMs - lastMs;
+
+      if (gap < 0) {
+        // Clock skew minor. Behandlung sebagai "lama" → flip.
+        effectiveJenis = last.jenis === 'masuk' ? 'keluar' : 'masuk';
+      } else if (gap < ONE_MINUTE_MS) {
+        // Double-tap dalam < 1 menit: tolak, jangan insert.
+        skipReason = 'scan terlalu cepat — abaikan (cooldown 60 detik)';
+      } else {
+        // ≥ 1 menit sejak scan terakhir → flip jenis (masuk↔keluar).
+        effectiveJenis = last.jenis === 'masuk' ? 'keluar' : 'masuk';
+      }
+    }
+
+    if (skipReason) {
+      // Jangan insert ke log_akses. Beri tahu frontend lewat status 'dilewati'.
+      return {
+        status: 'dilewati',
+        reason: skipReason,
+        rfid_id: lookup.rfid_id,
+        pengguna_id: lookup.pengguna_id,
+        last_jenis: last ? last.jenis : null,
+      };
+    }
+
+    // 3b. Active & valid -> insert log dengan jenis yang sudah diflip (bila perlu).
     const info = db.prepare(`
       INSERT INTO log_akses (rfid_id, lokasi_id, jenis, waktu_scan, status, keterangan, status_sync)
       VALUES (?, ?, ?, datetime('now'), 'sukses', NULL, 0)
-    `).run(lookup.rfid_id, locId, jenis);
+    `).run(lookup.rfid_id, locId, effectiveJenis);
 
     // Ambil detail profil lengkap via VIEW untuk frontend render
     const profile = db.prepare(`
@@ -142,6 +186,7 @@ app.post('/api/scan', (req, res) => {
       rfid_id: lookup.rfid_id,
       pengguna_id: lookup.pengguna_id,
       log_id: info.lastInsertRowid,
+      jenis: effectiveJenis,
       ...profile,
     };
   });

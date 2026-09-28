@@ -53,12 +53,14 @@
    * Inject data siswa/guru ke kartu profil.
    * @param {object} data — payload dari GET /api/scan/:uid
    */
-  function renderProfile(data) {
+  function renderProfile(data, jenis) {
     const typeLabel = data.tipe === "siswa" ? "Siswa" : "Guru";
     const aktifLabel = data.status_aktif === "aktif" ? "Aktif" : "Nonaktif";
+    const jenisLabel = (jenis || "masuk").toUpperCase();
+    const nowStr = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
-    if (els.statusCard) els.statusCard.textContent = "Selamat Datang Di LAB MAN 1";
-    if (els.statusSub)  els.statusSub.textContent = `${typeLabel} — ${data.nama}`;
+    if (els.statusCard) els.statusCard.textContent = `Selamat Datang Di LAB MAN 1`;
+    if (els.statusSub)  els.statusSub.textContent = `${typeLabel} — ${data.nama} | ${jenisLabel} ${nowStr} WITA`;
     if (els.name)       els.name.textContent = data.nama || "-";
     if (els.kelas)      els.kelas.textContent =
       (data.nama_kelas ? data.nama_kelas : data.jabatan) || "-";
@@ -107,13 +109,20 @@
         body: JSON.stringify({ uid, lokasi_id: LOKASI_ID, jenis: JENIS_DEFAULT }),
       });
       const data = await res.json();
-      if (!res.ok || data.status === 'gagal') {
-        if (els.statusCard) els.statusCard.textContent = "KARTU TIDAK DITEMUKAN";
-        if (els.statusSub)  els.statusSub.textContent = data.error || data.reason || "Scan gagal";
+
+      // gagal = kartu/tidak aktif/uid tidak terdaftar
+      if (!res.ok || data.status === 'gagal' || data.status === 'dilewati') {
+        if (data.status === 'dilewati') {
+          if (els.statusCard) els.statusCard.textContent = "SCAN DI-LEWATI";
+          if (els.statusSub)  els.statusSub.textContent = data.reason || "Scan terlalu cepat, tunggu 60 detik";
+        } else {
+          if (els.statusCard) els.statusCard.textContent = "KARTU TIDAK DITEMUKAN";
+          if (els.statusSub)  els.statusSub.textContent = data.error || data.reason || "Scan gagal";
+        }
         setTimeout(resetToScanPrompt, 2000);
         return;
       }
-      renderProfile(data);
+      renderProfile(data, data.jenis);
     } catch (e) {
       if (els.statusCard) els.statusCard.textContent = "ERROR JARINGAN";
       console.error("[RFID] fetch error:", e);
