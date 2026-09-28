@@ -3,6 +3,7 @@
 -- :rfid_id / :lokasi_id diproleh dari hasil query 01 (join rfid_card).
 INSERT INTO log_akses (rfid_id, lokasi_id, jenis, waktu_scan, status, keterangan, status_sync)
 VALUES (:rfid_id, :lokasi_id, :jenis, :waktu_scan, 'sukses', NULL, 0);
+-- :waktu_scan = unix epoch UTC (strftime('%s','now'))
 
 -- query/03_sync_queue.sql
 -- Ambil batch log belum tersinkron ke Hostinger (status_sync = 0)

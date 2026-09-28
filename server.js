@@ -107,7 +107,7 @@ app.post('/api/scan', (req, res) => {
     if (inactiveReason) {
       const info = db.prepare(`
         INSERT INTO log_akses (rfid_id, lokasi_id, jenis, waktu_scan, status, keterangan, status_sync)
-        VALUES (?, ?, ?, datetime('now'), 'gagal', ?, 0)
+        VALUES (?, ?, ?, strftime('%s','now'), 'gagal', ?, 0)
       `).run(card.id, locId, jenis, inactiveReason);
       return { status: 'gagal', reason: inactiveReason, rfid_id: card.id, log_id: info.lastInsertRowid };
     }
@@ -125,11 +125,10 @@ app.post('/api/scan', (req, res) => {
     let skipReason = null;                // null = boleh insert
 
     if (last) {
-      // SQLite datetime('now') menghasilkan UTC (YYYY-MM-DD HH:MM:SS).
-      // Append 'Z' agar Date.parse memperlakukannya sebagai UTC, konsisten
-      // dengan Date.now() yang juga epoch UTC. Tanpa ini zona lokal menyimpang
-      // hingga berjam dan cooldown tidak pernah trigger.
-      const lastMs = Date.parse(last.waktu_scan + 'Z');
+      // strftime('%s','now') = unix epoch (detik, UTC). Simpan sebagai integer
+      // untuk hindari ambiguitas zona waktu. Gap dihitung dibandingkan
+      // dengan Date.now() yang juga epoch UTC (kali 1000 = ms).
+      const lastMs = Number(last.waktu_scan) * 1000;
       const nowMs  = Date.now();
       const gap    = nowMs - lastMs;
 
@@ -159,7 +158,7 @@ app.post('/api/scan', (req, res) => {
     // 3b. Active & valid -> insert log dengan jenis yang sudah diflip (bila perlu).
     const info = db.prepare(`
       INSERT INTO log_akses (rfid_id, lokasi_id, jenis, waktu_scan, status, keterangan, status_sync)
-      VALUES (?, ?, ?, datetime('now'), 'sukses', NULL, 0)
+      VALUES (?, ?, ?, strftime('%s','now'), 'sukses', NULL, 0)
     `).run(lookup.rfid_id, locId, effectiveJenis);
 
     // Ambil detail profil lengkap via VIEW untuk frontend render

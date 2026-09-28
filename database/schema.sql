@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS log_akses (
     lokasi_id       INTEGER NOT NULL,
     jenis           TEXT NOT NULL
                       CHECK (jenis IN ('masuk','keluar')),
-    waktu_scan      TEXT NOT NULL,          -- DATETIME -> TEXT (ISO8601)
+    waktu_scan      TEXT NOT NULL,          -- unix epoch (strftime('%s','now')), UTC
     status          TEXT NOT NULL
                       CHECK (status IN ('sukses','gagal')),
     keterangan      TEXT,
