@@ -231,6 +231,51 @@ app.get('/api/log-akses', (req, res) => {
 });
 
 /**
+ * GET /api/aktivitas-terakhir
+ * 5 log presensi terakhir — otomatis ter-update tiap ada scan baru
+ * karena query langsung baca dari log_akbes (ORDER BY id DESC LIMIT 5).
+ * Response juga diload oleh endpoint ini sendiri agar frontend polling
+ * selalu dapat data terbaru tanpa perlu polling penuh /api/log-akses.
+ */
+app.get('/api/aktivitas-terakhir', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT
+        l.id, l.jenis, l.status, l.waktu_scan, l.keterangan, l.status_sync,
+        p.tipe, p.nama, r.uid,
+        s.nisn, s.kelas_id, k.nama_kelas, k.tingkat,
+        g.nip, g.jabatan,
+        lok.nama_lokasi
+      FROM log_akses l
+      JOIN rfid_card r ON r.id = l.rfid_id
+      JOIN pengguna    p ON p.id = r.pengguna_id
+      JOIN lokasi      lok ON lok.id = l.lokasi_id
+      LEFT JOIN siswa  s ON s.id = p.id
+      LEFT JOIN guru   g ON g.id = p.id
+      LEFT JOIN kelas  k ON k.id = s.kelas_id
+      WHERE l.status = 'sukses'
+      ORDER BY l.id DESC
+      LIMIT 5
+    `).all();
+
+    // Konversi epoch -> ISO agar frontend langsung pakai (zona waktu tetap UTC
+    // di JSON, frontend tampilkan di WITA).
+    const result = rows.map(r => ({
+      ...r,
+      waktu_scan: r.waktu_scan ? new Date(Number(r.waktu_scan) * 1000).toISOString() : null,
+      // helper: label ringkas
+      label: r.tipe === 'siswa'
+        ? `${r.nama} (${r.nama_kelas || r.nisn || ''})`
+        : `${r.nama} (${r.jabatan || ''})`,
+    }));
+
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * POST /api/sync
  * Mark logs as synced (status_sync = 1). Body: { ids: [1,2,3] }
  */
