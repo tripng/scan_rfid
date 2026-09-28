@@ -25,6 +25,8 @@
     nisn:        document.getElementById("student-nisn"),
     badge:       document.getElementById("student-badge"),
     photo:       document.getElementById("student-photo"),
+    // Live feed container — di-populate oleh fetch /api/aktivitas-terakhir
+    logStream:   document.getElementById("log-stream"),
   };
 
   // ---- state penumpukan karakter RFID ----
@@ -123,6 +125,11 @@
         return;
       }
       renderProfile(data, data.jenis);
+      // Live feed: langsung fetch ke /api/aktivitas-terakhir setelah scan
+      // sukses agar item terbaru muncul immediately (bukan menunggu polling 10s).
+      // Transaksi INSERT di backend sudah commit sebelum response dikirim,
+      // jadi GET berikutnya sudah pasti melihat record baru.
+      fetchRecentLogs();
     } catch (e) {
       if (els.statusCard) els.statusCard.textContent = "ERROR JARINGAN";
       console.error("[RFID] fetch error:", e);
@@ -147,6 +154,133 @@
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     if (e.key.length === 1) {
       buffer += e.key;
+    }
+  }
+
+  /**
+   * Format epoch-ISO → "HH:MM" WITA (UTC+7).
+   * Backend /api/aktivitas-terakhir kirimkan ISO string (UTC);
+   * ditampilkan di zona lokal kiosk yang asumsinya WITA.
+   * Bila beda 1-2 detik tidak masalah untuk live feed estetik.
+   */
+  function formatTimeWita(isoStr) {
+    if (!isoStr) return "--:--";
+    const d = new Date(isoStr);
+    // +7 jam = 25200000 ms agar selalu WITA meski browser di zona lain.
+    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+    const wita = new Date(utc + (7 * 3600000));
+    return wita.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+
+  /**
+   * "Baru Saja" bila ≤ 60s, "kk menit lalu" bila ≤ 1jam, selainnya jam:mens.
+   * Untuk memberi jejak waktu relatif di live feed.
+   */
+  function relativeTime(isoStr) {
+    if (!isoStr) return "";
+    const d = new Date(isoStr);
+    const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (sec < 60)  return "Baru Saja";
+    if (sec < 3600) return `${Math.floor(sec / 60)} menit lalu`;
+    return "";
+  }
+
+  /**
+   * Build satu item DOM dari sebuah log (object dari /api/aktivitas-terakhir).
+   */
+  function buildLogItem(row) {
+    const isSiswa = row.tipe === "siswa";
+    const isLatest = row.status_sync === 0; // item belum disinkron — highlight rose di kiri
+
+    const badgeTxt = row.jenis === "masuk" ? "MASUK" : "KELUAR";
+    // Warna tema: MASUK = hijau (emerald), KELUAR = merah (rose)
+    const isMasuk = row.jenis === "masuk";
+    const color = isMasuk ? "emerald" : "rose";
+
+    // Sub-label: kelas/jabatan + NISN/NIP
+    let subLabel = "";
+    if (isSiswa) {
+      subLabel = `${row.nama_kelas || "-"} \u2022 NISN: ${row.nisn || "-"}`;
+    } else {
+      subLabel = `${row.jabatan || "-"} \u2022 NIP: ${row.nip || "-"}`;
+    }
+
+    // Path foto: priority foto_path bila ada, else NISN/NIP + .jpg
+    const idCol = isSiswa ? (row.nisn || row.nip) : (row.nip || row.nisn);
+    const fotoPath = (row.foto_path
+      ? (/\.(jpg|jpeg|png|webp)$/i.test(row.foto_path) ? row.foto_path : `${row.foto_path}.jpg`)
+      : `${idCol}.jpg`);
+    const fotoUrl = `./photos/${encodeURIComponent(fotoPath)}?t=${Date.now()}`;
+
+    // Waktu relatif untuk highlight; absolut di kanan
+    const rel = relativeTime(row.waktu_scan);
+
+    const div = document.createElement("div");
+    div.className = `rounded-lg p-space-sm flex items-center justify-between gap-space-sm shadow-xs transition-colors ${
+      isLatest
+        ? `bg-${color}-50/80 border border-${color}-200`
+        : "bg-slate-50 border border-slate-200 hover:bg-slate-100/80"
+    }`;
+    div.innerHTML = `
+      <div class="flex items-center gap-space-sm min-w-0">
+        <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-${color}-200 bg-slate-100 shrink-0 flex items-center justify-center">
+          <img
+            src="${fotoUrl}"
+            alt="Foto ${row.nama || '-'}"
+            class="w-full h-full object-cover object-top"
+            onerror="this.onerror=null;this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI2Y1ZmZmZiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNsaW5lPSJtaWQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2FucXMtc2VyaWYiIGZvbnRzaXplPSIxNCIgZmlsbD0iIzkyYzUzNCI+Tm9JbWFnZSw8L3RleHQ+PC9zdmc+';"
+          />
+        </div>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-headline-md text-sm font-bold text-slate-900 truncate">${row.nama || "-"}</span>
+            ${rel ? `<span class="font-label-code text-xs text-${color}-800 font-bold px-1.5 py-0.2 rounded bg-${color}-100 border border-${color}-300">${rel || badgeTxt}</span>` : ""}
+          </div>
+          <span class="font-label-code text-xs text-slate-600 font-semibold">${subLabel}</span>
+        </div>
+      </div>
+      <div class="text-right shrink-0">
+        <span class="font-headline-md text-sm ${isLatest ? `text-${color}-800` : "text-slate-900"} font-bold block">${badgeTxt}</span>
+        <span class="font-label-code text-xs text-slate-600 font-semibold">${formatTimeWita(row.waktu_scan)}</span>
+      </div>
+    `;
+    return div;
+  }
+
+  /**
+   * Populate container #log-stream dengan snapshot 5 log terbaru.
+   * List disusun reverse-chronological (terbaru di atas) untuk mencerminkan
+   * urutan keluaran API (ORDER BY id DESC) — tidak perlu reverse di sini.
+   */
+  function renderLogStream(logs) {
+    if (!els.logStream) return;
+    els.logStream.innerHTML = "";
+    if (!Array.isArray(logs) || logs.length === 0) {
+      els.logStream.innerHTML =
+        '<div class="font-label-code text-xs text-slate-500 text-center py-4">Belum ada log presensi</div>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const row of logs) frag.appendChild(buildLogItem(row));
+    els.logStream.appendChild(frag);
+  }
+
+  /**
+   * Fetch 5 log presensi terakhir dari /api/aktivitas-terakhir.
+   * On error: kosongkan feed + tampilkan placeholder agar kiota tidak
+   * menampilkan stale data.
+   */
+  async function fetchRecentLogs() {
+    if (!els.logStream) return;
+    try {
+      const res = await fetch(`${API_BASE}/aktivitas-terakhir`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const logs = await res.json();
+      renderLogStream(logs);
+    } catch (e) {
+      console.error("[RFID] aktivitas-terakhir fetch error:", e);
+      els.logStream.innerHTML =
+        '<div class="font-label-code text-xs text-rose-600 text-center py-4">Gagal memuat log presensi</div>';
     }
   }
 
@@ -176,4 +310,8 @@
 
   setInterval(updateClock, 1000);
   updateClock();
+
+  // Live feed: log presensi terakhir — fetch sekali + polling tiap 10 detik
+  fetchRecentLogs();
+  setInterval(fetchRecentLogs, 10000);
 })();

@@ -137,7 +137,8 @@
   </header>
 
   <!-- Hidden input keeps page focus for USB HID RFID keyboard typing -->
-  <input id="rfid-input" type="hidden" autocomplete="off" />
+  <input id="rfid-input" type="text" inputmode="none" autocomplete="off"
+         class="opacity-0 absolute pointer-events-none" tabindex="-1" />
 
   <main class="pt-20">
     <!-- Ambient Accents -->
@@ -300,7 +301,7 @@
               <h2 id="status-card"
                 class="font-headline-lg text-2xl md:text-3xl font-bold text-slate-900 tracking-tight"
               >
-                TEMPELKAN KARTU PELAJAR
+                TEMPELKAN KARTU ABSENSI
               </h2>
               <p class="font-body-md text-base text-slate-700 mt-1 font-medium" id="status-sub">
                 Tempelkan Kartu RFID Anda di Alat Pemindai
@@ -353,9 +354,17 @@
                   class="relative w-36 h-36 rounded-xl overflow-hidden shadow-md border-2 border-slate-200 bg-slate-100"
                 >
                   <img
+                    id="student-photo"
                     alt="Photo Siswa"
                     class="w-full h-full object-cover object-top"
-                    src="./photos/X1/MOH AUDAX.jpg"
+                    src="./photos/115571177.jpg"
+                  />
+                  <!-- fallback SVG placeholder bila foto tidak ada -->
+                  <img
+                    alt="Photo Placeholder"
+                    class="hidden w-full h-full object-cover object-top"
+                    id="photo-placeholder"
+                    src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI2Y1ZmZmZiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNsaW5lPSJtaWQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2FucXMtc2VyaWYiIGZvbnRzaXplPSIxNCIgZmlsbD0iIzkyYzUzNCI+Tm9JbWFnZTwvdGV4dD48L3N2Zz4="
                   />
                   <div
                     class="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md border-2 border-white"
@@ -512,7 +521,7 @@
               <div class="flex flex-col min-w-0">
                 <span
                   class="font-label-badge text-xs text-amber-800 font-bold uppercase tracking-wider"
-                  >Guru Pemimpin Lab Komputer</span
+                  >Kepala Laboratorium Komputer</span
                 >
                 <span
                   class="font-headline-md text-base font-bold text-slate-900 truncate"
@@ -545,153 +554,9 @@
               >
             </div>
 
-            <!-- Attendance Records Stream List -->
-            <div class="flex flex-col gap-2 overflow-hidden">
-              <!-- Item 1 (Just now) -->
-              <div
-                class="bg-emerald-50/80 border border-emerald-200 hover:bg-emerald-50 transition-colors rounded-lg p-space-sm flex items-center justify-between gap-space-sm shadow-xs"
-              >
-                <div class="flex items-center gap-space-sm min-w-0">
-                  <div
-                    class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs"
-                  >
-                    <span class="material-symbols-outlined text-[20px]">person</span>
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="font-headline-md text-sm font-bold text-slate-900 truncate"
-                        >Muhammad Fikri Pratama</span
-                      >
-                      <span
-                        class="font-label-code text-xs text-emerald-800 font-bold px-1.5 py-0.2 rounded bg-emerald-100 border border-emerald-300"
-                        >Baru Saja</span
-                      >
-                    </div>
-                    <span class="font-label-code text-xs text-slate-600 font-semibold"
-                      >XII IPA 2 &#8226; NISN: 0068492011</span
-                    >
-                  </div>
-                </div>
-                <div class="text-right shrink-0">
-                  <span
-                    class="font-headline-md text-sm text-emerald-800 font-bold block"
-                    >Lab-PC 14</span
-                  >
-                  <span class="font-label-code text-xs text-slate-600 font-semibold"
-                    >07:41:52</span
-                  >
-                </div>
-              </div>
-
-              <!-- Item 2 -->
-              <div
-                class="bg-slate-50 hover:bg-slate-100/80 border border-slate-200 transition-colors rounded-lg p-space-sm flex items-center justify-between gap-space-sm"
-              >
-                <div class="flex items-center gap-space-sm min-w-0">
-                  <div
-                    class="w-10 h-10 rounded-full bg-teal-100 border border-teal-200 text-teal-800 flex items-center justify-center shrink-0"
-                  >
-                    <span class="material-symbols-outlined text-[20px]">person_4</span>
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-headline-md text-sm font-bold text-slate-900 truncate"
-                      >Siti Nurhaliza</span
-                    >
-                    <span class="font-label-code text-xs text-slate-600 font-semibold"
-                      >XII IPA 1 &#8226; NISN: 0067341190</span
-                    >
-                  </div>
-                </div>
-                <div class="text-right shrink-0">
-                  <span class="font-headline-md text-sm text-slate-900 font-bold block">Lab-PC 12</span>
-                  <span class="font-label-code text-xs text-slate-600 font-semibold"
-                    >07:40:12</span
-                  >
-                </div>
-              </div>
-
-              <!-- Item 3 -->
-              <div
-                class="bg-slate-50 hover:bg-slate-100/80 border border-slate-200 transition-colors rounded-lg p-space-sm flex items-center justify-between gap-space-sm"
-              >
-                <div class="flex items-center gap-space-sm min-w-0">
-                  <div
-                    class="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 text-blue-800 flex items-center justify-center shrink-0"
-                  >
-                    <span class="material-symbols-outlined text-[20px]">person</span>
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-headline-md text-sm font-bold text-slate-900 truncate"
-                      >Raihan Ilham</span
-                    >
-                    <span class="font-label-code text-xs text-slate-600 font-semibold"
-                      >XII IPS 2 &#8226; NISN: 0069223019</span
-                    >
-                  </div>
-                </div>
-                <div class="text-right shrink-0">
-                  <span class="font-headline-md text-sm text-slate-900 font-bold block">Lab-PC 09</span>
-                  <span class="font-label-code text-xs text-slate-600 font-semibold"
-                    >07:38:45</span
-                  >
-                </div>
-              </div>
-
-              <!-- Item 4 -->
-              <div
-                class="bg-slate-50 hover:bg-slate-100/80 border border-slate-200 transition-colors rounded-lg p-space-sm flex items-center justify-between gap-space-sm"
-              >
-                <div class="flex items-center gap-space-sm min-w-0">
-                  <div
-                    class="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-800 flex items-center justify-center shrink-0"
-                  >
-                    <span class="material-symbols-outlined text-[20px]">person_3</span>
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-headline-md text-sm font-bold text-slate-900 truncate"
-                      >Anisa Rahmawati</span
-                    >
-                    <span class="font-label-code text-xs text-slate-600 font-semibold"
-                      >XII IPA 2 &#8226; NISN: 0065118742</span
-                    >
-                  </div>
-                </div>
-                <div class="text-right shrink-0">
-                  <span class="font-headline-md text-sm text-slate-900 font-bold block">Lab-PC 07</span>
-                  <span class="font-label-code text-xs text-slate-600 font-semibold"
-                    >07:36:20</span
-                  >
-                </div>
-              </div>
-
-              <!-- Item 5 -->
-              <div
-                class="bg-slate-50 hover:bg-slate-100/80 border border-slate-200 transition-colors rounded-lg p-space-sm flex items-center justify-between gap-space-sm"
-              >
-                <div class="flex items-center gap-space-sm min-w-0">
-                  <div
-                    class="w-10 h-10 rounded-full bg-amber-100 border border-amber-200 text-amber-900 flex items-center justify-center shrink-0"
-                  >
-                    <span class="material-symbols-outlined text-[20px]">person</span>
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-headline-md text-sm font-bold text-slate-900 truncate"
-                      >Zulkifli Hasan</span
-                    >
-                    <span class="font-label-code text-xs text-slate-600 font-semibold"
-                      >XII IPA 1 &#8226; NISN: 0061984210</span
-                    >
-                  </div>
-                </div>
-                <div class="text-right shrink-0">
-                  <span class="font-headline-md text-sm text-slate-900 font-bold block">Lab-PC 05</span>
-                  <span class="font-label-code text-xs text-slate-600 font-semibold"
-                    >07:34:02</span
-                  >
-                </div>
-              </div>
-            </div>
+            <!-- Attendance Records Stream List — populated dynamically by script.js
+                 via GET /api/aktivitas-terakhir (5 log presensi sukses terbaru). -->
+            <div id="log-stream" class="flex flex-col gap-2 overflow-y-auto">
           </div>
         </div>
       </div>
