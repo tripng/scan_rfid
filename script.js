@@ -113,7 +113,7 @@
       // gagal = kartu/tidak aktif/uid tidak terdaftar
       if (!res.ok || data.status === 'gagal' || data.status === 'dilewati') {
         if (data.status === 'dilewati') {
-          if (els.statusCard) els.statusCard.textContent = "SCAN DI-LEWATI";
+          if (els.statusCard) els.statusCard.textContent = "Sudah Melakukan Scan";
           if (els.statusSub)  els.statusSub.textContent = data.reason || "Scan terlalu cepat, tunggu 60 detik";
         } else {
           if (els.statusCard) els.statusCard.textContent = "KARTU TIDAK DITEMUKAN";
