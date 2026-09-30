@@ -24,6 +24,7 @@
     kelas:       document.getElementById("student-kelas"),
     nisn:        document.getElementById("student-nisn"),
     badge:       document.getElementById("student-badge"),
+    rfid:        document.getElementById("student-rfid"),
     photo:       document.getElementById("student-photo"),
     // Live feed container — di-populate oleh fetch /api/aktivitas-terakhir
     logStream:   document.getElementById("log-stream"),
@@ -77,6 +78,12 @@
       if (labelEl) labelEl.textContent = data.tipe === "guru" ? "NIP" : "NISN";
     }
     if (els.badge) els.badge.textContent = `${typeLabel} ${aktifLabel}`;
+    if (els.rfid)  els.rfid.textContent = data.uid || data.nama || "-";
+
+    // Ucapan suara selamat datang / terima kasih via Web Speech API (id-ID).
+    // Hanya di main thread (bukan worker) & browser support check.
+    // MASUK = "Selamat Datang", KELUAR = "Terima Kasih".
+    speakWelcome(data, jenis);
 
     // foto: jika DB kembalikan path, pakai relatif dari root serve; fallback placeholder
     if (els.photo) {
@@ -99,6 +106,38 @@
     // auto-reset setelah ~2 detik agi siap amb scan berikutnya
     clearTimeout(window.__resetTimer);
     window.__resetTimer = setTimeout(resetToScanPrompt, 2000);
+  }
+
+  /**
+   * Ucapkan suara melalui Web Speech API (browser built-in, locale id-ID).
+   * - MASUK: "Selamat Datang, <nama>"
+   * - KELUAR: "Terima Kasih, <nama>"
+   * Nonaktifkan bila API tidak tersedia atau sedang diputar.
+   */
+  function speakWelcome(data, jenis) {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    // Hentikan ucapan sebelumnya agar tidak menumpuk
+    if (window.__labSpeechUtter) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+    const nama = (data.nama || "teman-teman").split(",")[0];
+    const msg = (jenis === "keluar")
+      ? `Terima Kasih, ${nama}`
+      : `Selamat Datang, ${nama}`;
+    const utter = new SpeechSynthesisUtterance(msg);
+    // Cari voice perempuan id-ID bila tersedia, else default
+    const voices = window.speechSynthesis.getVoices
+      ? window.speechSynthesis.getVoices() : [];
+    const idVoice = voices.find(v => v.lang === "id-ID");
+    if (idVoice) utter.voice = idVoice;
+    utter.lang = "id-ID";
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
+    window.__labSpeechUtter = utter;
+    window.speechSynthesis.speak(utter);
+    // Bersihkan flag saat selesai (error juga harus clear supaya tidak stuck)
+    utter.onend = () => { window.__labSpeechUtter = null; };
+    utter.onerror = () => { window.__labSpeechUtter = null; };
   }
 
   /**
