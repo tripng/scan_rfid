@@ -23,6 +23,9 @@
   <!-- External Stylesheet -->
   <link rel="stylesheet" href="style.css" />
 
+  <!-- Preload suara scan kartu agar tidak latency pada first play -->
+  <audio id="scan-sound" src="./sound.mp3" preload="auto" style="display:none"></audio>
+
   <!-- Tailwind Config (must be inline for CDN) -->
   <script id="tailwind-config">
     tailwind.config = {
