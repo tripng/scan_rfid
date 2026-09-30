@@ -30,6 +30,7 @@
     // Kapasitas workstation live — di-update oleh GET /api/kapasitas-hari-ini
     kapasitasUsed: document.getElementById("kapasitas-used"),
     kapasitasPct:  document.getElementById("kapasitas-pct"),
+    kapasitasBar:  document.getElementById("kapasitas-bar"),
   };
 
   // ---- state penumpukan karakter RFID ----
@@ -302,6 +303,10 @@
       const pct = Number(k.pct) || 0;
       if (els.kapasitasUsed) els.kapasitasUsed.textContent = used;
       if (els.kapasitasPct)  els.kapasitasPct.textContent = `${pct}%`;
+      // Progress bar lebar proporsional — warnanya otomatis hijau via class
+      // di DOM; nilai width di-drive langsung dari field `pct` backend agar
+      // selalu akurat tiap polling 10s.
+      if (els.kapasitasBar) els.kapasitasBar.style.width = `${pct}%`;
     } catch (e) {
       console.error("[RFID] kapasitas-hari-ini fetch error:", e);
     }

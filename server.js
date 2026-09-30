@@ -114,12 +114,22 @@ app.post('/api/scan', (req, res) => {
 
     // 3. Active & valid -> cek anti-double-scan + auto-flip jenis.
     const ONE_MINUTE_MS = 60 * 1000;
+    // Hitung awal hari ini 00:00 WITA (UTC+7) — portabel terhadap zona DB.
+    // waktu_scan disimpan strftime('%s','now') = epoch UTC; bandikan dengan
+    // batas hari ini agar log KEMARIN tidak memicu flip ke KELUAR.
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const wita = utc + 7 * 3600000;
+    const startOfToday = Math.floor((wita - (wita % 86400000)) / 1000);
+
+    // Hanya pertimbangkan scan HARI INI. Jika belum ada log hari ini →
+    // berarti user belum scan masuk hari ini → wajib MASUK (hari baru).
     const last = db.prepare(`
       SELECT jenis, waktu_scan
       FROM log_akses
-      WHERE rfid_id = ?
+      WHERE rfid_id = ? AND waktu_scan >= ?
       ORDER BY id DESC LIMIT 1
-    `).get(lookup.rfid_id);
+    `).get(lookup.rfid_id, startOfToday);
 
     let effectiveJenis = jenis;            // jenis yang akan dicatat
     let skipReason = null;                // null = boleh insert
@@ -139,9 +149,13 @@ app.post('/api/scan', (req, res) => {
         // Double-tap dalam < 1 menit: tolak, jangan insert.
         skipReason = 'scan terlalu cepat — abaikan (cooldown 60 detik)';
       } else {
-        // ≥ 1 menit sejak scan terakhir → flip jenis (masuk↔keluar).
+        // ≥ 1 menit sejak scan terakhir HARI INI → flip (masuk↔keluar).
         effectiveJenis = last.jenis === 'masuk' ? 'keluar' : 'masuk';
       }
+    } else {
+      // Tidak ada log hari ini → hari baru / belum pernah scan hari ini
+      // → wajib MASUK (tidak pernah auto-flip ke KELUAR di awal hari).
+      effectiveJenis = 'masuk';
     }
 
     if (skipReason) {
